@@ -1,0 +1,77 @@
+# Elevator Congestion Backend
+
+성신여대 엘리베이터 혼잡도 안내 서비스용 Python FastAPI 백엔드입니다.
+
+## 역할
+
+- `sensor_imputed.csv`의 `status_kor` 값을 현재 혼잡도로 사용합니다.
+- 센서 CSV에 결측치 보정 여부(`imputed`)가 있으면 API 응답에 함께 제공합니다.
+- 수업 시간표 CSV를 읽어 건물별 이동 수요를 계산합니다.
+- 현재 혼잡도, 10분 후 예측 혼잡도, 예상 대기 시간, 계단 추천 여부를 제공합니다.
+- 로그인은 학번 기반입니다.
+- 학번별 시간표, 즐겨찾기, 계단 이용 보상, 뱃지, 수룡이 건강 점수를 관리합니다.
+- 원하는 장소와 시간대의 혼잡도 알림을 설정하고 조회할 수 있습니다.
+
+## 데이터 위치
+
+```text
+data/sensor_imputed.csv
+data/sensor_clean.csv
+data/schedule_semester_1.csv
+data/schedule_semester_2.csv
+```
+
+## 실행
+
+```bash
+python -m pip install -r requirements.txt
+python -m uvicorn main:app --reload
+```
+
+서버 주소:
+
+```text
+http://localhost:8000
+```
+
+Docker로 실행:
+
+```bash
+docker compose up --build
+```
+
+## 주요 API
+
+```text
+GET  /api/home/map
+GET  /api/buildings/{building_id}
+GET  /api/buildings/{building_id}/elevators
+GET  /api/routes/recommend
+
+POST /api/users/login
+GET  /api/users/{student_id}
+POST /api/users/{student_id}/timetable
+POST /api/users/{student_id}/favorites
+POST /api/users/{student_id}/stair-uses
+GET  /api/users/{student_id}/rewards
+GET  /api/users/{student_id}/next-route
+
+POST /api/alerts
+GET  /api/alerts/user/{student_id}
+GET  /api/alerts/user/{student_id}/active
+
+GET  /api/schedules/search
+GET  /api/data/summary
+```
+
+## 건물 코드
+
+```text
+SOOJUNG   수정관
+SUNGSHIN  성신관
+NANHYANG  난향관
+UNJEONG   운정그린캠퍼스
+PRIME     프라임관
+```
+
+현재 센서 CSV에는 건물/층 정보가 없으므로 기본 센서 위치는 `SOOJUNG` 1층 메인 엘리베이터로 매핑합니다. 다른 건물의 혼잡도는 센서 흐름과 시간표 기반 이동 수요를 함께 사용해 추정합니다.
