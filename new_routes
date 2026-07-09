@@ -1,0 +1,408 @@
+"""
+SSNAAI — new_routes.py
+프론트 기획 기반 신규 API 엔드포인트
+
+app.py 맨 아래에 두 줄 추가:
+    from new_routes import register_new_routes
+    register_new_routes(app, get_db)
+"""
+
+from flask import jsonify, request, Response
+import json
+import time
+from datetime import datetime, timedelta
+
+# ── 혼잡도 레벨 → 색상 / 한국어 레이블 ──────────────────────
+CONGESTION_COLORS = {
+    'low'      : '#22c55e',   # 초록
+    'medium'   : '#eab308',   # 노랑
+    'high'     : '#ef4444',   # 빨강
+    'very_high': '#7f1d1d',   # 흑적색
+}
+CONGESTION_LABELS = {
+    'low'      : '여유',
+    'medium'   : '보통',
+    'high'     : '혼잡',
+    'very_high': '매우 혼잡',
+}
+
+
+def estimate_wait_minutes(person_count: int) -> int:
+    """인원 수 → 예상 대기 시간(분)"""
+    if person_count <= 0:    return 0
+    elif person_count <= 3:  return 1
+    elif person_count <= 8:  return 3
+    elif person_count <= 15: return 6
+    else:                    return 10
+
+
+def register_new_routes(app, get_db):
+
+    # ═══════════════════════════════════════════════════════
+    # 홈 화면 — 지도 마커
+    # ═══════════════════════════════════════════════════════
+
+    @app.route('/api/map/markers', methods=['GET'])
+    def get_map_markers():
+        """
+        캠퍼스 지도에 표시할 전체 마커 데이터.
+        위치(lat/lng) + 혼잡도 색상 + 대기시간 포함.
+
+        React 지도 라이브러리(Kakao Map / Leaflet)에서 바로 사용 가능한 형태.
+        """
+        db   = get_db()
+        rows = db.execute('''
+            SELECT s.sensor_id, s.building, s.floor,
+                   s.location_desc, s.lat, s.lng,
+                   cl.congestion_level, cl.person_count, cl.recorded_at
+            FROM   SENSORS s
+            LEFT JOIN CONGESTION_LOGS cl
+                   ON cl.log_id = (
+                       SELECT MAX(log_id) FROM CONGESTION_LOGS
+                       WHERE  sensor_id = s.sensor_id
+                   )
+            WHERE  s.status = 'active'
+        ''').fetchall()
+
+        markers = []
+        for r in rows:
+            level = r['congestion_level'] or 'low'
+            markers.append({
+                'sensor_id'    : r['sensor_id'],
+                'building'     : r['building'],
+                'floor'        : r['floor'],
+                'location_desc': r['location_desc'],
+                'lat'          : r['lat'],
+                'lng'          : r['lng'],
+                'congestion_level': level,
+                'color'        : CONGESTION_COLORS[level],
+                'label'        : CONGESTION_LABELS[level],
+                'person_count' : r['person_count'] or 0,
+                'wait_minutes' : estimate_wait_minutes(r['person_count'] or 0),
+                'recorded_at'  : r['recorded_at'],
+            })
+        return jsonify(markers)
+
+
+    # ═══════════════════════════════════════════════════════
+    # 홈 화면 — SSE 실시간 스트리밍
+    # ═══════════════════════════════════════════════════════
+
+    @app.route('/api/stream', methods=['GET'])
+    def stream():
+        """
+        Server-Sent Events: 30초마다 전체 마커 데이터 자동 push.
+        새로고침 없이 지도가 실시간으로 갱신됨.
+
+        React 연동 예시 (App.jsx):
+            useEffect(() => {
+                const es = new EventSource('http://localhost:5000/api/stream');
+                es.onmessage = (e) => setMarkers(JSON.parse(e.data));
+                return () => es.close();
+            }, []);
+        """
+        def generate():
+            while True:
+                db   = get_db()
+                rows = db.execute('''
+                    SELECT s.sensor_id, s.lat, s.lng,
+                           cl.congestion_level, cl.person_count
+                    FROM   SENSORS s
+                    LEFT JOIN CONGESTION_LOGS cl
+                           ON cl.log_id = (
+                               SELECT MAX(log_id) FROM CONGESTION_LOGS
+                               WHERE sensor_id = s.sensor_id
+                           )
+                    WHERE  s.status = 'active'
+                ''').fetchall()
+
+                payload = [{
+                    'sensor_id'       : r['sensor_id'],
+                    'lat'             : r['lat'],
+                    'lng'             : r['lng'],
+                    'congestion_level': r['congestion_level'] or 'low',
+                    'color'           : CONGESTION_COLORS.get(
+                                            r['congestion_level'] or 'low', '#22c55e'),
+                    'person_count'    : r['person_count'] or 0,
+                } for r in rows]
+
+                yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                time.sleep(30)   # 30초 간격 (경진대회 데모용)
+
+        return Response(
+            generate(),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control'             : 'no-cache',
+                'X-Accel-Buffering'         : 'no',   # Nginx 사용 시 버퍼링 방지
+                'Access-Control-Allow-Origin': '*',
+            }
+        )
+
+
+    # ═══════════════════════════════════════════════════════
+    # 상세 화면 — 층별 대기 현황 + 행동 유도 배너
+    # ═══════════════════════════════════════════════════════
+
+    @app.route('/api/elevator/<building>/floors', methods=['GET'])
+    def get_elevator_floors(building):
+        """
+        특정 건물의 층별 대기 현황.
+        혼잡 시 배너 메시지 포함.
+
+        Response 예:
+        {
+            "building": "학생회관",
+            "floors": [
+                {
+                    "floor": 3,
+                    "congestion_level": "high",
+                    "color": "#ef4444",
+                    "person_count": 12,
+                    "wait_minutes": 6,
+                    "show_banner": true,
+                    "banner_message": "지금 계단이 더 빨라요!"
+                }
+            ]
+        }
+        """
+        db   = get_db()
+        rows = db.execute('''
+            SELECT s.floor, s.sensor_id, s.location_desc,
+                   cl.congestion_level, cl.person_count, cl.recorded_at
+            FROM   SENSORS s
+            LEFT JOIN CONGESTION_LOGS cl
+                   ON cl.log_id = (
+                       SELECT MAX(log_id) FROM CONGESTION_LOGS
+                       WHERE  sensor_id = s.sensor_id
+                   )
+            WHERE  s.building = ? AND s.status = 'active'
+            ORDER  BY s.floor
+        ''', (building,)).fetchall()
+
+        if not rows:
+            return jsonify({'error': f'건물 "{building}"을 찾을 수 없습니다.'}), 404
+
+        floors = []
+        for r in rows:
+            level  = r['congestion_level'] or 'low'
+            count  = r['person_count'] or 0
+            wait   = estimate_wait_minutes(count)
+            banner = level in ('high', 'very_high')
+
+            floors.append({
+                'floor'           : r['floor'],
+                'sensor_id'       : r['sensor_id'],
+                'location_desc'   : r['location_desc'],
+                'congestion_level': level,
+                'color'           : CONGESTION_COLORS[level],
+                'label'           : CONGESTION_LABELS[level],
+                'person_count'    : count,
+                'wait_minutes'    : wait,
+                'show_banner'     : banner,
+                'banner_message'  : '지금 계단이 더 빨라요! 🚶' if banner else None,
+                'recorded_at'     : r['recorded_at'],
+            })
+
+        return jsonify({'building': building, 'floors': floors})
+
+
+    # ═══════════════════════════════════════════════════════
+    # 상세 화면 — 30분 예측 차트 데이터
+    # ═══════════════════════════════════════════════════════
+
+    @app.route('/api/predictions/<int:sensor_id>/chart', methods=['GET'])
+    def get_prediction_chart(sensor_id):
+        """
+        꺾은선 그래프용 시계열 데이터.
+        과거 30분 실측 + 미래 30분 AI 예측 포함.
+
+        Response:
+        {
+            "past":   [{"time":"09:00","value":3,"level":"low"}, ...],
+            "future": [{"time":"09:05","value":7,"level":"medium"}, ...],
+            "alert_message": "10분 뒤 사람이 더 몰려요!"
+        }
+        """
+        db = get_db()
+
+        # ── 과거 30분 실측 (5분 간격 6개) ──────────────────
+        past_rows = db.execute('''
+            SELECT recorded_at, person_count, congestion_level
+            FROM   CONGESTION_LOGS
+            WHERE  sensor_id = ?
+            ORDER  BY recorded_at DESC
+            LIMIT  6
+        ''', (sensor_id,)).fetchall()
+
+        past = [{
+            'time' : r['recorded_at'][11:16],   # "HH:MM"
+            'value': r['person_count'] or 0,
+            'level': r['congestion_level'] or 'low',
+        } for r in reversed(past_rows)]
+
+        # ── 미래 30분 예측 (PREDICTIONS 기반 선형 보간) ─────
+        latest_pred = db.execute('''
+            SELECT predicted_level, confidence
+            FROM   PREDICTIONS
+            WHERE  sensor_id = ?
+            ORDER  BY predicted_at DESC
+            LIMIT  1
+        ''', (sensor_id,)).fetchone()
+
+        level_to_value = {
+            'low': 2, 'medium': 6, 'high': 11, 'very_high': 18
+        }
+        now = datetime.now()
+
+        if latest_pred:
+            target  = level_to_value.get(latest_pred['predicted_level'], 2)
+            current = past[-1]['value'] if past else 2
+
+            future = []
+            for i in range(1, 7):   # 5, 10, 15, 20, 25, 30분 뒤
+                t      = now + timedelta(minutes=i * 5)
+                interp = round(current + (target - current) * (i / 6))
+                future.append({
+                    'time' : t.strftime('%H:%M'),
+                    'value': interp,
+                    'level': latest_pred['predicted_level'],
+                })
+        else:
+            future = []
+
+        # ── 직관적 알림 텍스트 생성 ─────────────────────────
+        alert_message = None
+        if future and past:
+            current_val = past[-1]['value']
+            peak_val    = max(f['value'] for f in future)
+            peak_idx    = next(
+                i for i, f in enumerate(future) if f['value'] == peak_val
+            )
+            peak_min = (peak_idx + 1) * 5
+
+            if peak_val > current_val * 1.3:
+                alert_message = f'{peak_min}분 뒤 사람이 더 몰려요!'
+            elif future[-1]['value'] < current_val * 0.7:
+                alert_message = '30분 뒤에 타면 더 여유로워요!'
+
+        return jsonify({
+            'past'          : past,
+            'future'        : future,
+            'alert_message' : alert_message,
+        })
+
+
+    # ═══════════════════════════════════════════════════════
+    # 알림 설정
+    # ═══════════════════════════════════════════════════════
+
+    @app.route('/api/notifications/settings/<device_id>', methods=['GET'])
+    def get_notification_settings(device_id):
+        db  = get_db()
+        row = db.execute(
+            'SELECT * FROM NOTIFICATION_SETTINGS WHERE device_id = ?', (device_id,)
+        ).fetchone()
+        return jsonify(dict(row) if row else {})
+
+    @app.route('/api/notifications/settings', methods=['POST'])
+    def save_notification_settings():
+        """
+        Body: { device_id, floor(선택), threshold, class_based }
+        threshold: "medium" | "high" | "very_high"
+        class_based: true = 수업 맞춤형 알림 ON
+        """
+        data = request.get_json()
+        if not data or 'device_id' not in data:
+            return jsonify({'error': 'device_id is required'}), 400
+
+        db = get_db()
+        db.execute('''
+            INSERT INTO NOTIFICATION_SETTINGS (device_id, floor, threshold, class_based)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(device_id) DO UPDATE SET
+                floor       = excluded.floor,
+                threshold   = excluded.threshold,
+                class_based = excluded.class_based,
+                updated_at  = datetime('now','localtime')
+        ''', (
+            data['device_id'],
+            data.get('floor'),
+            data.get('threshold', 'high'),
+            1 if data.get('class_based', True) else 0,
+        ))
+        db.commit()
+        return jsonify({'status': 'ok'}), 201
+
+
+    # ═══════════════════════════════════════════════════════
+    # 게이미피케이션
+    # ═══════════════════════════════════════════════════════
+
+    @app.route('/api/gamification/stairs', methods=['POST'])
+    def log_stair_choice():
+        """
+        계단 선택 기록 + 10포인트 적립.
+        Body: { device_id, sensor_id }
+        """
+        data = request.get_json()
+        if not data or 'device_id' not in data:
+            return jsonify({'error': 'device_id is required'}), 400
+
+        db = get_db()
+        db.execute(
+            'INSERT INTO STAIR_LOGS (device_id, sensor_id) VALUES (?, ?)',
+            (data['device_id'], data.get('sensor_id'))
+        )
+        db.commit()
+
+        # 통계 반환
+        stats = db.execute('''
+            SELECT COUNT(*)           as cnt,
+                   SUM(points_earned) as total
+            FROM   STAIR_LOGS
+            WHERE  device_id = ?
+        ''', (data['device_id'],)).fetchone()
+
+        count    = stats['cnt']   or 0
+        points   = stats['total'] or 0
+        calories = round(count * 0.15, 1)   # 계단 1회 ≈ 0.15 kcal
+
+        return jsonify({
+            'status'         : 'ok',
+            'points_earned'  : 10,
+            'total_points'   : points,
+            'stair_count'    : count,
+            'calories_burned': calories,
+            'message'        : f'총 {count}회 계단 이용! {calories}kcal 소모 🔥',
+        }), 201
+
+    @app.route('/api/gamification/stats/<device_id>', methods=['GET'])
+    def get_gamification_stats(device_id):
+        """개인 누적 통계 + 레벨"""
+        db  = get_db()
+        row = db.execute('''
+            SELECT COUNT(*)           as cnt,
+                   SUM(points_earned) as total
+            FROM   STAIR_LOGS
+            WHERE  device_id = ?
+        ''', (device_id,)).fetchone()
+
+        count    = row['cnt']   or 0
+        points   = row['total'] or 0
+        calories = round(count * 0.15, 1)
+
+        # 레벨 시스템: 100pt마다 레벨업
+        level       = points // 100 + 1
+        level_names = ['씨앗 🌱', '새싹 🌿', '계단왕 🏆', '건강마스터 💪']
+        level_name  = level_names[min(level - 1, len(level_names) - 1)]
+
+        return jsonify({
+            'device_id'      : device_id,
+            'stair_count'    : count,
+            'total_points'   : points,
+            'calories_burned': calories,
+            'level'          : level,
+            'level_name'     : level_name,
+            'next_level_pts' : level * 100 - points,
+        })
