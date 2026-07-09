@@ -12,6 +12,7 @@ class Settings:
     sensor_clean_csv: Path = BASE_DIR / "data" / "sensor_clean.csv"
     semester1_schedule_csv: Path = BASE_DIR / "data" / "schedule_semester_1.csv"
     semester2_schedule_csv: Path = BASE_DIR / "data" / "schedule_semester_2.csv"
+    sqlite_db: Path = BASE_DIR / "data" / "app.db"
     reload_seconds: int = 30
     default_building_id: str = "SOOJUNG"
     default_elevator_id: str = "SOOJUNG-MAIN"
