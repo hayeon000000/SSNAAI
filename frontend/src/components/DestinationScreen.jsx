@@ -1,100 +1,144 @@
 import { useState } from 'react';
-import { BadgeIcon, ProfileIcon, HomeBadge } from './NavIcons';
+import BottomNav from './BottomNav';
+import NotificationBell from './NotificationBell';
 import { getNow } from '../lib/getNow';
 
-const TRANSPORT_OPTIONS = ['엘베만', '엘베+계단', '계단만'];
+function ElevatorIcon({ className, selected }) {
+  const fill = selected ? 'rgba(167,139,186,0.5)' : 'rgba(255,255,255,0.5)';
+  return (
+    <svg viewBox="0 0 62 81" className={className} fill="none">
+      <rect x="1" y="1" width="60" height="79" rx="12" fill={fill} stroke="white" />
+      <rect x="9" y="8" width="44" height="63" rx="10" fill={fill} stroke="white" />
+      <line x1="31" y1="8" x2="31" y2="71" stroke="white" strokeWidth="1.5" />
+    </svg>
+  );
+}
 
-const DESTINATIONS = [
-  '성신관',
-  '학생회관',
-  '난향관',
-  '수정관A',
-  '수정관B',
-  '수정관C',
-  '조형1관',
-  '조형2관',
-  '음악관',
-  '도서관',
-  '행정관',
-  '체육관',
+function StairsIcon({ className, selected }) {
+  return (
+    <svg viewBox="0 0 79 81" className={className} fill={selected ? '#a78bba' : 'white'}>
+      <path d="M0 81 L0 61 L20 61 L20 41 L40 41 L40 21 L60 21 L60 0 L79 0 L79 81 Z" />
+    </svg>
+  );
+}
+
+const TRANSPORT_OPTIONS = [
+  { id: '엘베만', label: '엘리베이터', Icon: ElevatorIcon },
+  { id: '계단만', label: '계단', Icon: StairsIcon },
 ];
 
-const CARD_CLASS = 'bg-[#f0f0f0] rounded-3xl p-5 shadow-[0_1px_11px_4px_rgba(195,199,244,0.44)]';
+const PRIMARY_DESTINATIONS = ['수정관A', '성신관', '난향관'];
+const OTHER_DESTINATIONS = ['도서관', '수정관B', '수정관C', '음악관', '조형1관', '조형2관', '체육관', '학생회관', '행정관'];
+
+const CARD_CLASS = 'bg-white/50 rounded-2xl shadow-[0px_4px_17.9px_-6px_rgba(167,139,186,0.5)] p-5';
+
+function DestinationPill({ name, selected, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-[46px] rounded-full text-[15px] font-medium transition-colors ${
+        selected ? 'bg-[#a78bba] text-white' : 'bg-white/50 text-[#a78bba] hover:bg-white/80'
+      }`}
+    >
+      {name}
+    </button>
+  );
+}
 
 export default function DestinationScreen({ onComplete, onBack, onOpenProfile }) {
   const { date, time } = getNow();
-  const [transport, setTransport] = useState(null);
+  const [transport, setTransport] = useState([]);
   const [destination, setDestination] = useState(null);
 
+  const toggleTransport = (id) => {
+    setTransport((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+  };
+
   return (
-    <div className="max-w-sm mx-auto min-h-screen bg-neutral-950 text-white flex flex-col justify-between px-4 py-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-purple-400">SSNAAI</h1>
-          <div className="flex items-center gap-2 text-xs text-neutral-400">
+    <div
+      className="max-w-sm mx-auto min-h-screen flex flex-col justify-between px-7 py-8 text-white"
+      style={{ background: 'linear-gradient(160deg, #a78bba 6%, #ffffff 100%)' }}
+    >
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">SSNAAI</h1>
+            <NotificationBell />
+          </div>
+
+          <div className="flex items-center justify-between text-lg font-medium">
             <span>{date}</span>
             <span>{time}</span>
           </div>
         </div>
 
         <div className={CARD_CLASS}>
-          <h2 className="text-neutral-600 text-lg font-medium mb-4">이용할 수단</h2>
-          <div className="flex items-center justify-between px-2">
-            {TRANSPORT_OPTIONS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setTransport(option)}
-                className={`text-base font-medium transition-colors hover:text-purple-400 ${
-                  transport === option ? 'text-purple-500' : 'text-black'
-                }`}
-              >
-                {option}
-              </button>
-            ))}
+          <h2 className="text-xl font-bold text-center mb-5">이용 수단</h2>
+          <div className="flex items-center justify-center gap-10">
+            {TRANSPORT_OPTIONS.map(({ id, label, Icon }) => {
+              const selected = transport.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => toggleTransport(id)}
+                  className="flex flex-col items-center gap-2 rounded-2xl px-3 py-2 transition-colors hover:bg-white/20"
+                >
+                  <Icon className="w-14 h-16" selected={selected} />
+                  <span className={`text-[13px] font-semibold ${selected ? 'text-[#a78bba]' : 'text-white'}`}>
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div className={CARD_CLASS}>
-          <h2 className="text-neutral-600 text-lg font-medium mb-4">목적지</h2>
-          <div className="grid grid-cols-3 gap-y-4 text-center">
-            {DESTINATIONS.map((name) => (
-              <button
+          <h2 className="text-xl font-bold text-center mb-5">목적지</h2>
+          <div className="grid grid-cols-3 gap-3">
+            {PRIMARY_DESTINATIONS.map((name) => (
+              <DestinationPill
                 key={name}
-                type="button"
+                name={name}
+                selected={destination === name}
                 onClick={() => setDestination(name)}
-                className={`text-base font-medium transition-colors hover:text-purple-400 ${
-                  destination === name ? 'text-purple-500' : 'text-black'
-                }`}
-              >
-                {name}
-              </button>
+              />
+            ))}
+          </div>
+          <hr className="border-white/60 my-4" />
+          <div className="grid grid-cols-3 gap-3">
+            {OTHER_DESTINATIONS.map((name) => (
+              <DestinationPill
+                key={name}
+                name={name}
+                selected={destination === name}
+                onClick={() => setDestination(name)}
+              />
             ))}
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onComplete?.({ transport, destination })}
-          className="w-full py-3 rounded-full bg-[#f0f0f0] text-black text-base font-medium transition-colors hover:bg-[#c8a8e9]"
-        >
-          완료
-        </button>
+        <div className="flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-[163px] py-3 rounded-[37px] bg-white/50 text-[#a775ca] text-[15px] font-medium shadow-[0px_4px_20.8px_-10px_rgba(167,139,186,0.5)] transition-colors hover:bg-white/70 active:bg-[#a78bba]/50 active:text-white"
+          >
+            돌아가기
+          </button>
+          <button
+            type="button"
+            onClick={() => onComplete?.({ transport, destination })}
+            className="w-[163px] py-3 rounded-[37px] bg-[#a78bba]/50 text-white text-[15px] font-medium shadow-[0px_4px_20.8px_-10px_rgba(167,139,186,0.5)] transition-colors hover:bg-[#a78bba]/70"
+          >
+            선택하기
+          </button>
+        </div>
       </div>
 
-      <div className="flex items-center justify-between px-6 mt-8">
-        <button type="button">
-          <BadgeIcon className="w-7 h-9 text-neutral-400" />
-        </button>
-
-        <button type="button" onClick={onBack} className="w-14 h-14 transition hover:brightness-125">
-          <HomeBadge className="w-full h-full" />
-        </button>
-
-        <button type="button" onClick={onOpenProfile}>
-          <ProfileIcon className="w-7 h-9 text-neutral-400" />
-        </button>
-      </div>
+      <BottomNav onHome={onBack} onProfile={onOpenProfile} />
     </div>
   );
 }
