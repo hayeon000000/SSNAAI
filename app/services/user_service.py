@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time
 
 from app.config import settings
 from app.models.domain import RouteMode, UserProfile, UserTimetableEntry
@@ -15,18 +15,21 @@ from app.models.schemas import (
 )
 from app.services.congestion_service import congestion_service
 from app.services.data_store import data_store
+from app.services.db_service import database
 
 
 class UserService:
-    def __init__(self) -> None:
-        self._users: dict[str, UserProfile] = {}
-
     def login(self, request: LoginRequest) -> LoginResponse:
         student_id = self._normalize_student_id(request.student_id)
-        user = self._users.setdefault(
-            student_id,
-            UserProfile(student_id=student_id, timetable=[], favorite_places=set()),
-        )
+        with database.connect() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO users (student_id)
+                VALUES (?)
+                """,
+                (student_id,),
+            )
+        user = self.require_user(student_id)
         return LoginResponse(student_id=user.student_id, rewards=self._reward_response(user))
 
     def profile(self, student_id: str) -> UserProfileResponse:
@@ -34,7 +37,7 @@ class UserService:
 
     def require_user(self, student_id: str) -> UserProfile:
         normalized = self._normalize_student_id(student_id)
-        user = self._users.get(normalized)
+        user = self._load_user(normalized)
         if not user:
             raise ValueError(f"로그인되지 않은 학번입니다: {normalized}")
         return user
@@ -43,28 +46,69 @@ class UserService:
         user = self.require_user(student_id)
         building_id = request.building_id or data_store.building_from_room(request.room).id
         floor = request.floor if request.floor is not None else data_store.floor_from_room(request.room)
-        entry = UserTimetableEntry(
-            subject=request.subject,
-            day_of_week=data_store.day_to_weekday(request.day),
-            start_time=request.start_time,
-            end_time=request.end_time,
-            building_id=building_id,
-            room=request.room,
-            floor=floor,
-            preferred_route_mode=request.preferred_route_mode,
-        )
-        user.timetable.append(entry)
-        return self._profile_response(user)
+
+        with database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO user_timetable (
+                    student_id, subject, day_of_week, start_time, end_time,
+                    building_id, room, floor, preferred_route_mode
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user.student_id,
+                    request.subject,
+                    data_store.day_to_weekday(request.day),
+                    request.start_time.isoformat(),
+                    request.end_time.isoformat(),
+                    building_id,
+                    request.room,
+                    floor,
+                    request.preferred_route_mode.value,
+                ),
+            )
+        return self.profile(user.student_id)
 
     def add_favorite(self, student_id: str, request: FavoritePlaceRequest) -> UserProfileResponse:
         user = self.require_user(student_id)
-        user.favorite_places.add(request.place_id)
-        return self._profile_response(user)
+        with database.connect() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO favorite_places (student_id, place_id)
+                VALUES (?, ?)
+                """,
+                (user.student_id, request.place_id),
+            )
+        return self.profile(user.student_id)
 
     def record_stair_use(self, student_id: str, request: StairUseRequest) -> RewardResponse:
         user = self.require_user(student_id)
-        user.record_stair_use(request.floors)
-        return self._reward_response(user)
+        floors = max(1, request.floors)
+        stair_use_floors = user.stair_use_floors + floors
+        reward_points = user.reward_points + floors * 10
+        suyong_health = min(100, user.suyong_health + floors * 2)
+
+        with database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO stair_uses (student_id, floors)
+                VALUES (?, ?)
+                """,
+                (user.student_id, floors),
+            )
+            connection.execute(
+                """
+                UPDATE users
+                SET stair_use_floors = ?,
+                    reward_points = ?,
+                    suyong_health = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE student_id = ?
+                """,
+                (stair_use_floors, reward_points, suyong_health, user.student_id),
+            )
+        return self.rewards(user.student_id)
 
     def rewards(self, student_id: str) -> RewardResponse:
         return self._reward_response(self.require_user(student_id))
@@ -87,6 +131,60 @@ class UserService:
             to_floor=next_class.floor or 1,
             mode=next_class.preferred_route_mode or RouteMode.STAIRS_AND_ELEVATOR,
             at=base_time,
+        )
+
+    def _load_user(self, student_id: str) -> UserProfile | None:
+        with database.connect() as connection:
+            user_row = connection.execute(
+                """
+                SELECT student_id, stair_use_floors, reward_points, suyong_health
+                FROM users
+                WHERE student_id = ?
+                """,
+                (student_id,),
+            ).fetchone()
+            if not user_row:
+                return None
+
+            timetable_rows = connection.execute(
+                """
+                SELECT subject, day_of_week, start_time, end_time, building_id,
+                       room, floor, preferred_route_mode
+                FROM user_timetable
+                WHERE student_id = ?
+                ORDER BY day_of_week, start_time
+                """,
+                (student_id,),
+            ).fetchall()
+            favorite_rows = connection.execute(
+                """
+                SELECT place_id
+                FROM favorite_places
+                WHERE student_id = ?
+                ORDER BY place_id
+                """,
+                (student_id,),
+            ).fetchall()
+
+        return UserProfile(
+            student_id=user_row["student_id"],
+            timetable=[
+                UserTimetableEntry(
+                    subject=row["subject"],
+                    day_of_week=int(row["day_of_week"]),
+                    start_time=self._parse_time(row["start_time"]),
+                    end_time=self._parse_time(row["end_time"]),
+                    building_id=row["building_id"],
+                    room=row["room"],
+                    floor=row["floor"],
+                    preferred_route_mode=RouteMode(row["preferred_route_mode"]),
+                )
+                for row in timetable_rows
+            ],
+            favorite_places={row["place_id"] for row in favorite_rows},
+            stair_use_floors=int(user_row["stair_use_floors"]),
+            reward_points=int(user_row["reward_points"]),
+            suyong_health=int(user_row["suyong_health"]),
         )
 
     def _profile_response(self, user: UserProfile) -> UserProfileResponse:
@@ -122,6 +220,9 @@ class UserService:
         if not normalized:
             raise ValueError("학번이 비어 있습니다.")
         return normalized
+
+    def _parse_time(self, value: str) -> time:
+        return time.fromisoformat(value)
 
 
 user_service = UserService()
