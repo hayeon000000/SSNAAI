@@ -97,6 +97,17 @@ GET  /api/schedules/search
 GET  /api/data/summary
 ```
 
+`/api/routes/recommend`는 건물 간 실제 이동 순서를 함께 제공합니다.
+
+```text
+학생회관 -> 난향관
+학생회관 -> 난향관 -> 성신관
+학생회관 -> 난향관 -> 수정관
+학생회관 -> 난향관 -> 성신관 -> 수정관
+```
+
+응답의 `route_buildings`는 선택된 이동 경로이고, `route_options`는 가능한 후보 경로 목록입니다.
+
 ## 건물 코드
 
 ```text
@@ -105,6 +116,7 @@ SUNGSHIN  성신관
 NANHYANG  난향관
 UNJEONG   운정그린캠퍼스
 PRIME     프라임관
+STUDENT_HALL 학생회관
 ```
 
 현재 센서 CSV에는 건물/층 정보가 없으므로 기본 센서 위치는 `SOOJUNG` 1층 메인 엘리베이터로 매핑합니다. 다른 건물의 혼잡도는 센서 흐름과 시간표 기반 이동 수요를 함께 사용해 추정합니다.

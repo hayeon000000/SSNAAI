@@ -49,6 +49,27 @@ class BuildingDetailResponse(BaseModel):
     recommendation_message: str
 
 
+class RouteBuildingCongestionResponse(BaseModel):
+    building_id: str
+    building_name: str
+    current_label: str
+    current_score: float
+    predicted_score_after_10_min: float
+    expected_wait_seconds: int
+    recommend_stairs: bool
+
+
+class RouteOptionResponse(BaseModel):
+    building_ids: list[str]
+    building_names: list[str]
+    walk_minutes: int
+    expected_wait_seconds: int
+    congestion_score: float
+    recommended: bool
+    steps: list[str]
+    congestions: list[RouteBuildingCongestionResponse]
+
+
 class RouteRecommendationResponse(BaseModel):
     requested_mode: RouteMode
     recommended_mode: RouteMode
@@ -58,6 +79,9 @@ class RouteRecommendationResponse(BaseModel):
     stairs_recommended: bool
     message: str
     steps: list[str]
+    route_buildings: list[str] = Field(default_factory=list)
+    route_building_names: list[str] = Field(default_factory=list)
+    route_options: list[RouteOptionResponse] = Field(default_factory=list)
 
 
 class LoginRequest(BaseModel):
