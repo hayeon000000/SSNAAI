@@ -14,9 +14,6 @@ from app.models.schemas import (
     BuildingDetailResponse,
     CampusMapResponse,
     DataSummaryResponse,
-    ElevatorMenuResponse,
-    ElevatorResponse,
-    FloorStatusResponse,
     RouteRecommendationResponse,
     ScheduleResponse,
 )
@@ -46,21 +43,6 @@ class CongestionService:
             else "현재는 엘리베이터 이용이 비교적 원활합니다."
         )
         return BuildingDetailResponse(congestion=congestion, nearby_classes=nearby, recommendation_message=message)
-
-    def elevators(self, building_id: str, at: datetime | None = None) -> ElevatorMenuResponse:
-        base_time = self.resolve_base_time(at)
-        building = data_store.get_building(building_id)
-        congestion = self.building_congestion(building_id, base_time)
-        elevators = [
-            self._elevator_response(building_id, index, base_time, congestion)
-            for index in range(1, 3 if building.max_floor >= 8 else 2)
-        ]
-        return ElevatorMenuResponse(
-            building_id=building.id,
-            building_name=building.name,
-            base_time=base_time,
-            elevators=elevators,
-        )
 
     def building_congestion(self, building_id: str, base_time: datetime) -> BuildingCongestionResponse:
         building = data_store.get_building(building_id)
@@ -178,52 +160,6 @@ class CongestionService:
             schedule_rows=len(data_store.schedules),
             first_sensor_time=data_store.first_sensor_time(),
             latest_sensor_time=data_store.latest_sensor_time(),
-        )
-
-    def _elevator_response(
-        self,
-        building_id: str,
-        index: int,
-        base_time: datetime,
-        congestion: BuildingCongestionResponse,
-    ) -> ElevatorResponse:
-        building = data_store.get_building(building_id)
-        floors = [
-            self._floor_status(building_id, floor, base_time, congestion)
-            for floor in range(building.min_floor, building.max_floor + 1)
-        ]
-        return ElevatorResponse(
-            elevator_id=f"{building_id}-E{index}",
-            elevator_name=f"{building.name} {index}호기",
-            current_label=congestion.current_label,
-            current_score=congestion.current_score,
-            predicted_score_after_10_min=congestion.predicted_score_after_10_min,
-            expected_wait_seconds=congestion.expected_wait_seconds,
-            floors=floors,
-        )
-
-    def _floor_status(
-        self,
-        building_id: str,
-        floor: int,
-        base_time: datetime,
-        congestion: BuildingCongestionResponse,
-    ) -> FloorStatusResponse:
-        pressure = data_store.schedule_pressure(building_id, base_time, window_minutes=10, floor=floor)
-        current_score = self._clamp(congestion.current_score + pressure * 8.0 + max(0, floor - 1) * 1.2)
-        predicted_score = self._clamp(congestion.predicted_score_after_10_min + pressure * 4.0)
-        wait_seconds = self._expected_wait_seconds(max(current_score, predicted_score), pressure)
-        level = level_from_score(current_score)
-        return FloorStatusResponse(
-            floor=floor,
-            waiting_count=max(0, round(current_score / 15.0) + pressure),
-            current_label=LEVEL_LABELS[level],
-            current_score=round(current_score, 1),
-            predicted_score_after_10_min=round(predicted_score, 1),
-            expected_wait_seconds=wait_seconds,
-            schedule_pressure=pressure,
-            data_imputed=congestion.data_imputed,
-            recommend_stairs=predicted_score >= 70 or wait_seconds >= 240,
         )
 
     def _schedule_response(self, item: ScheduleEntry) -> ScheduleResponse:
