@@ -49,35 +49,6 @@ class BuildingDetailResponse(BaseModel):
     recommendation_message: str
 
 
-class FloorStatusResponse(BaseModel):
-    floor: int
-    waiting_count: int
-    current_label: str
-    current_score: float
-    predicted_score_after_10_min: float
-    expected_wait_seconds: int
-    schedule_pressure: int
-    data_imputed: bool
-    recommend_stairs: bool
-
-
-class ElevatorResponse(BaseModel):
-    elevator_id: str
-    elevator_name: str
-    current_label: str
-    current_score: float
-    predicted_score_after_10_min: float
-    expected_wait_seconds: int
-    floors: list[FloorStatusResponse]
-
-
-class ElevatorMenuResponse(BaseModel):
-    building_id: str
-    building_name: str
-    base_time: datetime
-    elevators: list[ElevatorResponse]
-
-
 class RouteRecommendationResponse(BaseModel):
     requested_mode: RouteMode
     recommended_mode: RouteMode

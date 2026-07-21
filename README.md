@@ -79,7 +79,6 @@ docker compose up --build
 ```text
 GET  /api/home/map
 GET  /api/buildings/{building_id}
-GET  /api/buildings/{building_id}/elevators
 GET  /api/routes/recommend
 
 POST /api/users/login
