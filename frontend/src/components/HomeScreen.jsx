@@ -13,6 +13,7 @@ export default function HomeScreen({
   onSelectDestination,
   onOpenResult,
   onOpenProfile,
+  onOpenPet,
   onSyncTimetable,
 }) {
   const { date, time } = getNow();
@@ -47,7 +48,7 @@ export default function HomeScreen({
         </div>
 
         <div className="w-full h-96">
-          <CampusMap />
+          <CampusMap showLabels={false} />
         </div>
 
         {showDestinationCard && (
@@ -80,7 +81,7 @@ export default function HomeScreen({
         </button>
       </div>
 
-      <BottomNav onProfile={onOpenProfile} homeActive />
+      <BottomNav onPet={onOpenPet} onProfile={onOpenProfile} homeActive />
     </div>
   );
 }

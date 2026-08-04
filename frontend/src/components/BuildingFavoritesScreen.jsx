@@ -53,7 +53,7 @@ function BuildingPill({ name, favorited, onDragStart, onDragEnd, onDragEnter, on
   );
 }
 
-export default function BuildingFavoritesScreen({ onSave, onBack, onHome }) {
+export default function BuildingFavoritesScreen({ onSave, onBack, onHome, onOpenPet }) {
   const [favorites, setFavorites] = useState([]);
   const [dragging, setDragging] = useState(null);
   const [touchPoint, setTouchPoint] = useState(null);
@@ -214,7 +214,7 @@ export default function BuildingFavoritesScreen({ onSave, onBack, onHome }) {
         </div>
       </div>
 
-      <BottomNav onHome={onHome} profileActive />
+      <BottomNav onPet={onOpenPet} onHome={onHome} profileActive />
 
       {dragging && touchPoint && (
         <div

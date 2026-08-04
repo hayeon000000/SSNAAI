@@ -3,14 +3,58 @@ import { User, Plus } from 'lucide-react';
 import BottomNav from './BottomNav';
 import NotificationBell from './NotificationBell';
 
-const DEPARTMENTS = ['컴퓨터공학과', '경영학과', 'AI융합학부', '간호학과'];
-const STUDENT_YEARS = ['24학번', '23학번', '22학번', '21학번'];
+const DEPARTMENTS = [
+  '국어국문학과',
+  '영어영문학과',
+  '독일어문·문화학과',
+  '프랑스어문·문화학과',
+  '일본어문·문화학과',
+  '중어중문·문화학과',
+  '사학과',
+  '정치외교학과',
+  '심리학과',
+  '지리학과',
+  '경제학과',
+  '경영학과',
+  '미디어커뮤니케이션학과',
+  '법학과',
+  '지식산업법학과',
+  '수학과',
+  '통계학과',
+  '융합보안공학과',
+  '컴퓨터공학과',
+  '정보시스템공학과',
+  '서비스디자인공학과',
+  'AI융합학부',
+  'AI',
+  '지능형IoT',
+  '청정신소재공학과',
+  '교육학과',
+  '사회교육과',
+  '윤리교육과',
+  '한문교육과',
+  '유아교육과',
+  '의류산업학과',
+  '소비자산업학과',
+  '뷰티산업학과',
+  '스포츠과학부',
+  '스포츠레저전공',
+  '운동재활전공',
+  '간호학과',
+];
+// 올해 입학년도부터 20년 전까지, 실제 존재할 수 있는 학번을 최신순으로 생성.
+const CURRENT_ADMISSION_YEAR = new Date().getFullYear();
+const STUDENT_YEARS = Array.from(
+  { length: 20 },
+  (_, i) => `${String((CURRENT_ADMISSION_YEAR - i) % 100).padStart(2, '0')}학번`
+);
 
 const FIELD_CLASS =
   'w-full h-[39px] rounded-[14px] bg-white/50 px-4 flex items-center text-left text-[15px]';
 
-export default function ProfileScreen({ profile, onSave, onBack, onHome }) {
+export default function ProfileScreen({ profile, onSave, onBack, onHome, onOpenPet }) {
   const [nickname, setNickname] = useState(profile?.nickname ?? '');
+  const [password, setPassword] = useState('');
   const [department, setDepartment] = useState(profile?.department ?? null);
   const [studentYear, setStudentYear] = useState(profile?.studentYear ?? null);
   const [departmentOpen, setDepartmentOpen] = useState(false);
@@ -52,6 +96,14 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome }) {
               className={`${FIELD_CLASS} text-[#a78bba] placeholder:text-[#a78bba]/60 outline-none`}
             />
 
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="비밀번호를 입력해 주세요."
+              className={`${FIELD_CLASS} text-[#a78bba] placeholder:text-[#a78bba]/60 outline-none`}
+            />
+
             <div className="relative">
               <button
                 type="button"
@@ -61,7 +113,7 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome }) {
                 {department ?? '학과(부) 선택'}
               </button>
               {departmentOpen && (
-                <div className="absolute z-10 top-full mt-1 w-full bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div className="absolute z-10 top-full mt-1 w-full max-h-64 overflow-x-hidden overflow-y-auto bg-white rounded-2xl shadow-lg">
                   {DEPARTMENTS.map((option) => (
                     <button
                       key={option}
@@ -90,7 +142,7 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome }) {
                 {studentYear ?? '학번 선택'}
               </button>
               {studentYearOpen && (
-                <div className="absolute z-10 top-full mt-1 w-full bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div className="absolute z-10 top-full mt-1 w-full max-h-64 overflow-x-hidden overflow-y-auto bg-white rounded-2xl shadow-lg">
                   {STUDENT_YEARS.map((option) => (
                     <button
                       key={option}
@@ -115,7 +167,7 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome }) {
         <div className="flex items-center justify-center gap-4 mt-6">
           <button
             type="button"
-            onClick={() => onSave?.({ nickname, department, studentYear })}
+            onClick={() => onSave?.({ nickname, department, studentYear, password })}
             className="w-[162px] py-3 rounded-[37px] bg-white/50 text-[#a775ca] text-[15px] font-medium shadow-[0px_4px_20.8px_-10px_rgba(167,139,186,0.5)] transition-colors hover:bg-white/70"
           >
             저장
@@ -130,7 +182,7 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome }) {
         </div>
       </div>
 
-      <BottomNav onHome={onHome} profileActive />
+      <BottomNav onPet={onOpenPet} onHome={onHome} profileActive />
     </div>
   );
 }

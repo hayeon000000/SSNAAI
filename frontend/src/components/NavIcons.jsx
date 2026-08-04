@@ -32,6 +32,17 @@ export function BadgeIcon({ className }) {
   return <DualToneIcon className={className} viewBox="0 0 35 30" paths={BADGE_PATHS} />;
 }
 
+// 수룡이 꾸미기 탭이 활성 상태일 때 항상 채워져 표시되는 잎 배지(Figma node-id 176:754).
+export function BadgeNavIcon({ className }) {
+  return (
+    <svg viewBox="0 0 35 30" className={className}>
+      {BADGE_PATHS.map((d, i) => (
+        <path key={i} d={d} fill="#a775ca" />
+      ))}
+    </svg>
+  );
+}
+
 export function ProfileIcon({ className }) {
   return <DualToneIcon className={className} viewBox="0 0 29 30" paths={[PROFILE_PATH]} />;
 }

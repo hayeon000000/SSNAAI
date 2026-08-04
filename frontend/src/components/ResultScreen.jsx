@@ -6,6 +6,7 @@ import NotificationBell from './NotificationBell';
 import WarningModal from './WarningModal';
 import { getNow } from '../lib/getNow';
 import { useEta } from '../lib/useEta';
+import { useCongestion } from '../lib/useCongestion';
 
 const TRANSPORT_LABELS = {
   엘베만: '엘리베이터만으로',
@@ -22,7 +23,14 @@ const TRANSPORT_SHORT_LABELS = {
   계단만: '계단',
 };
 
-export default function ResultScreen({ destination, transport, onEditDestination, onBack, onOpenProfile }) {
+export default function ResultScreen({
+  destination,
+  transport,
+  onEditDestination,
+  onBack,
+  onOpenProfile,
+  onOpenPet,
+}) {
   const { date, time } = getNow();
   const [showWarning, setShowWarning] = useState(false);
   const selectedTransport = transport ?? [];
@@ -35,6 +43,7 @@ export default function ResultScreen({ destination, transport, onEditDestination
   const altTransportShort = TRANSPORT_SHORT_LABELS[ALT_TRANSPORT[selectedTransport[0]]] ?? '다른 수단';
 
   const { data: eta } = useEta(destination, selectedTransport);
+  const { data: congestion } = useCongestion();
   const etaLabel = eta?.etaMinutes != null ? `${eta.etaMinutes}분` : '00분';
   const altEtaLabel = eta?.alternative?.etaMinutes != null ? `${eta.alternative.etaMinutes}분` : '00분';
   const altSteps = eta?.alternative?.steps ?? [];
@@ -57,7 +66,7 @@ export default function ResultScreen({ destination, transport, onEditDestination
       </div>
 
       <div className="flex-1 min-h-[110px] px-7 py-2">
-        <CampusMap />
+        <CampusMap congestion={congestion} />
       </div>
 
       <div className="relative rounded-t-[43px] bg-white/20 px-7 pt-4 pb-4">
@@ -108,7 +117,7 @@ export default function ResultScreen({ destination, transport, onEditDestination
         </button>
 
         <div className="mt-3">
-          <BottomNav onHome={onBack} onProfile={onOpenProfile} />
+          <BottomNav onPet={onOpenPet} onHome={onBack} onProfile={onOpenProfile} />
         </div>
       </div>
 

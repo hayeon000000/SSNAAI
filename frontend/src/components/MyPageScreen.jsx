@@ -7,7 +7,18 @@ const CARD_CLASS =
 
 const LIST_ITEM_CLASS = 'text-left text-[15px] text-white transition hover:brightness-75';
 
-export default function MyPageScreen({ profile, onEditProfile, onManageTimetable, onManageFavorites, onBack }) {
+export default function MyPageScreen({
+  profile,
+  onEditProfile,
+  onManageTimetable,
+  onManageFavorites,
+  onChangePassword,
+  onLogout,
+  onOpenPet,
+  onBack,
+}) {
+  const hasProfile = Boolean(profile?.nickname || profile?.department || profile?.studentYear);
+
   return (
     <div
       className="max-w-sm mx-auto min-h-screen flex flex-col justify-between px-7 py-8 text-white"
@@ -19,28 +30,43 @@ export default function MyPageScreen({ profile, onEditProfile, onManageTimetable
           <NotificationBell />
         </div>
 
-        <div className="flex items-center gap-5 mt-8">
-          <div className="relative shrink-0">
+        {hasProfile ? (
+          <div className="flex items-center gap-5 mt-8">
+            <div className="relative shrink-0">
+              <div className="w-[119px] h-[119px] rounded-full bg-[#f4ebf7] flex items-center justify-center">
+                <User className="w-14 h-14 text-[#a78bba]" strokeWidth={1.5} />
+              </div>
+              <button
+                type="button"
+                onClick={onEditProfile}
+                aria-label="프로필 수정"
+                className="absolute bottom-0 right-1 w-7 h-7 rounded-full bg-[#a78bba] flex items-center justify-center transition hover:brightness-75"
+              >
+                <Pencil className="w-3.5 h-3.5 text-white" />
+              </button>
+            </div>
+
+            <div>
+              <p className="font-bold text-xl">{profile.nickname || '닉네임 없음'}</p>
+              <p className="text-[15px] mt-1">
+                {[profile.department, profile.studentYear].filter(Boolean).join(' ') || '학과 · 학번 미설정'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-4 mt-8">
             <div className="w-[119px] h-[119px] rounded-full bg-[#f4ebf7] flex items-center justify-center">
               <User className="w-14 h-14 text-[#a78bba]" strokeWidth={1.5} />
             </div>
             <button
               type="button"
               onClick={onEditProfile}
-              aria-label="프로필 수정"
-              className="absolute bottom-0 right-1 w-7 h-7 rounded-full bg-[#a78bba] flex items-center justify-center transition hover:brightness-75"
+              className="w-[200px] py-3 rounded-[37px] bg-white/50 text-[#a775ca] text-[15px] font-medium shadow-[0px_4px_20.8px_-10px_rgba(167,139,186,0.5)] transition-colors hover:bg-white/70"
             >
-              <Pencil className="w-3.5 h-3.5 text-white" />
+              로그인하기
             </button>
           </div>
-
-          <div>
-            <p className="font-bold text-xl">{profile.nickname || '닉네임 없음'}</p>
-            <p className="text-[15px] mt-1">
-              {[profile.department, profile.studentYear].filter(Boolean).join(' ') || '학과 · 학번 미설정'}
-            </p>
-          </div>
-        </div>
+        )}
 
         <hr className="border-white/40 my-6" />
 
@@ -68,13 +94,10 @@ export default function MyPageScreen({ profile, onEditProfile, onManageTimetable
         <h2 className="font-semibold text-xl">계정 및 보안</h2>
         <hr className="border-white/40 my-4" />
         <div className="flex flex-col gap-5">
-          <button type="button" className={LIST_ITEM_CLASS}>
-            로그인 정보
-          </button>
-          <button type="button" className={LIST_ITEM_CLASS}>
+          <button type="button" onClick={onChangePassword} className={LIST_ITEM_CLASS}>
             비밀번호 변경
           </button>
-          <button type="button" className={LIST_ITEM_CLASS}>
+          <button type="button" onClick={onLogout} className={LIST_ITEM_CLASS}>
             로그아웃
           </button>
           <button type="button" className={LIST_ITEM_CLASS}>
@@ -83,7 +106,7 @@ export default function MyPageScreen({ profile, onEditProfile, onManageTimetable
         </div>
       </div>
 
-      <BottomNav onHome={onBack} profileActive />
+      <BottomNav onPet={onOpenPet} onHome={onBack} profileActive />
     </div>
   );
 }

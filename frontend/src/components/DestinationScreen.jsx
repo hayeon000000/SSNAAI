@@ -46,7 +46,7 @@ function DestinationPill({ name, selected, onClick }) {
   );
 }
 
-export default function DestinationScreen({ onComplete, onBack, onOpenProfile }) {
+export default function DestinationScreen({ onComplete, onBack, onOpenProfile, onOpenPet }) {
   const { date, time } = getNow();
   const [transport, setTransport] = useState([]);
   const [destination, setDestination] = useState(null);
@@ -138,7 +138,7 @@ export default function DestinationScreen({ onComplete, onBack, onOpenProfile })
         </div>
       </div>
 
-      <BottomNav onHome={onBack} onProfile={onOpenProfile} />
+      <BottomNav onPet={onOpenPet} onHome={onBack} onProfile={onOpenProfile} />
     </div>
   );
 }
