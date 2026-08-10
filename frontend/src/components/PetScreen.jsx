@@ -5,17 +5,14 @@ import NotificationBell from './NotificationBell';
 import PetSkinSheet from './PetSkinSheet';
 import suryong from '../assets/pet/suryong.png';
 import strawberrySuryong from '../assets/pet/strawberry_suryong.png';
+import jacketSuryong from '../assets/pet/jacket_suryong.png';
+import shortSleeveSuryong from '../assets/pet/short_sleeve_suryong.png';
 
-// 첫 칸은 원래 수룡이로 돌아가는 기본 스킨. 나머지는 지금은 딸기 수룡이로
-// 채운 placeholder라, 나중에 각 칸을 다른 수룡이 캐릭터(이미지)로 바꾸면
-// 그리드에 그대로 반영된다.
 const SKINS = [
+  { id: 'strawberry', label: '딸기 수룡이', image: strawberrySuryong },
+  { id: 'jacket', label: '과잠 수룡이', image: jacketSuryong },
+  { id: 'short-sleeve', label: '반소매 수룡이', image: shortSleeveSuryong },
   { id: 'default', label: '수룡이', image: suryong },
-  { id: 'strawberry-1', label: '딸기 수룡이', image: strawberrySuryong },
-  { id: 'strawberry-2', label: '딸기 수룡이', image: strawberrySuryong },
-  { id: 'strawberry-3', label: '딸기 수룡이', image: strawberrySuryong },
-  { id: 'strawberry-4', label: '딸기 수룡이', image: strawberrySuryong },
-  { id: 'strawberry-5', label: '딸기 수룡이', image: strawberrySuryong },
 ];
 
 export default function PetScreen({ onHome, onOpenProfile }) {

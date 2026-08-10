@@ -18,7 +18,7 @@ export default function PetSkinSheet({ open, skins, onSelect, onClose }) {
         <div className="w-10 h-1.5 rounded-full bg-[#d8c8e4] mx-auto mb-5" />
         <h2 className="text-lg font-bold text-[#a775ca] text-center mb-5">수룡이 꾸미기</h2>
 
-        <div className="grid grid-cols-3 gap-x-3 gap-y-6">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-6">
           {skins.map((skin) => (
             <button
               key={skin.id}
