@@ -23,6 +23,11 @@ from app.services.data_store import data_store
 
 
 class CongestionService:
+    # 발표용 목업 설정: 센서가 실제로는 수정관(SOOJUNG) 한 곳뿐이지만, 아래 건물들도
+    # 같은 센서 값을 그대로 써서 "같은 시간엔 다 같은 혼잡도"로 보이게 한다.
+    # (원래는 SOOJUNG만 SENSOR_CSV, 나머지는 시간표 기반 SCHEDULE_ESTIMATE였음)
+    SENSOR_MIRRORED_BUILDINGS = {"SOOJUNG", "STUDENT_HALL", "NANHYANG", "SUNGSHIN"}
+
     _campus_graph = {
         "STUDENT_HALL": ["NANHYANG"],
         "NANHYANG": ["STUDENT_HALL", "SUNGSHIN", "SOOJUNG"],
@@ -57,7 +62,7 @@ class CongestionService:
         building = data_store.get_building(building_id)
         sensor = data_store.latest_sensor_at(base_time)
         sensor_score = sensor.score if sensor else 55.0
-        default_sensor_building = building.id == settings.default_building_id
+        default_sensor_building = building.id in self.SENSOR_MIRRORED_BUILDINGS
 
         current_pressure = data_store.schedule_pressure(building.id, base_time, window_minutes=10)
         predicted_pressure = data_store.schedule_pressure(building.id, base_time + timedelta(minutes=10), window_minutes=10)
