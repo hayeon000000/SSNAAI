@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { login } from '../lib/api';
-import { setStudentId } from '../lib/apiConfig';
+import { setStudentId, setPassword } from '../lib/apiConfig';
 
 // ⚠️ 실제 백엔드(main 브랜치) 확인 결과: 로그인은 학번(student_id)만 필요함.
 // 비밀번호 입력칸은 화면 요청으로 추가했지만, 백엔드에 비밀번호 개념 자체가 없어서
@@ -24,8 +24,9 @@ export default function LoginScreen({ onLoginSuccess }) {
     setLoading(true);
     setError(null);
     try {
-      const result = await login(studentId.trim());
+      const result = await login(studentId.trim(), password.trim());
       setStudentId(result?.student_id ?? studentId.trim());
+      setPassword(result?.password ?? password.trim());
       onLoginSuccess?.(result);
     } catch (err) {
       console.error('[LoginScreen] 로그인 실패:', err);
