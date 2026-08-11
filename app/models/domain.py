@@ -130,16 +130,9 @@ class UserProfile:
         self.suyong_health = min(100, self.suyong_health + safe_floors * 2)
 
     def badges(self) -> set[str]:
-        badges: set[str] = set()
-        if self.stair_use_floors >= 1:
-            badges.add("FIRST_STEP")
-        if self.stair_use_floors >= 10:
-            badges.add("STAIR_STARTER")
-        if self.stair_use_floors >= 30:
-            badges.add("SUYONG_HEALTHY")
-        if self.stair_use_floors >= 60:
-            badges.add("CAMPUS_CLIMBER")
-        return badges
+        # 계단 10층 누적마다 뱃지 1개(상한 없음). 예: 7층=0개, 10층=1개, 25층=2개, 60층=6개.
+        earned_count = self.stair_use_floors // 10
+        return {f"STAIRS_{(i + 1) * 10}" for i in range(earned_count)}
 
 
 @dataclass(frozen=True)
