@@ -131,7 +131,7 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome, onOpenP
               placeholder="닉네임을 작성해 주세요."
               className={`${FIELD_CLASS} text-[#a78bba] placeholder:text-[#a78bba]/60 outline-none`}
             />
-
+            {/*
             <input
               type="password"
               value={password}
@@ -139,7 +139,7 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome, onOpenP
               placeholder="비밀번호를 입력해 주세요."
               className={`${FIELD_CLASS} text-[#a78bba] placeholder:text-[#a78bba]/60 outline-none`}
             />
-
+*/}
             <div className="relative">
               <button
                 type="button"

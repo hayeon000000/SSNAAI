@@ -1,4 +1,4 @@
-\import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
 
 // 아래에서 올라오는 반투명 시트. 뒤의 수룡이 화면이 다 가려지지 않도록

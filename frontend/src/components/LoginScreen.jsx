@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { login } from '../lib/api';
-import { setStudentId } from '../lib/apiConfig';
+import { setStudentId, setPassword } from '../lib/apiConfig';
 
 // ⚠️ 실제 백엔드(main 브랜치) 확인 결과: 로그인은 학번(student_id)만 필요함.
-// 이름/비밀번호 없음 — 없는 학번이면 그냥 새로 만들어짐.
+// 비밀번호 입력칸은 화면 요청으로 추가했지만, 백엔드에 비밀번호 개념 자체가 없어서
+// 서버로 보내지도 않고 검증도 안 됨 — 화면상으로만 존재하는 칸임. 실제로 비밀번호
+// 인증이 필요하면 정민이한테 백엔드에 필드 추가해달라고 해야 함.
 
 const FIELD_CLASS =
   'w-full h-[39px] rounded-[14px] bg-white/50 px-4 flex items-center text-left text-[15px]';
 
 export default function LoginScreen({ onLoginSuccess }) {
   const [studentId, setStudentIdInput] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -21,8 +24,9 @@ export default function LoginScreen({ onLoginSuccess }) {
     setLoading(true);
     setError(null);
     try {
-      const result = await login(studentId.trim());
+      const result = await login(studentId.trim(), password.trim());
       setStudentId(result?.student_id ?? studentId.trim());
+      setPassword(result?.password ?? password.trim());
       onLoginSuccess?.(result);
     } catch (err) {
       console.error('[LoginScreen] 로그인 실패:', err);
@@ -49,6 +53,14 @@ export default function LoginScreen({ onLoginSuccess }) {
               value={studentId}
               onChange={(e) => setStudentIdInput(e.target.value)}
               placeholder="학번을 입력해 주세요."
+              className={`${FIELD_CLASS} text-[#a78bba] placeholder:text-[#a78bba]/60 outline-none`}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="비밀번호를 입력해 주세요."
               className={`${FIELD_CLASS} text-[#a78bba] placeholder:text-[#a78bba]/60 outline-none`}
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             />
