@@ -13,10 +13,10 @@ import CameraTimestampRecorder from './CameraTimestampRecorder';
 
 // requiredBadges: 뱃지를 그만큼 모아야 해금됨(3개마다 하나씩). 기본 수룡이는 항상 해금.
 const SKINS = [
-  { id: 'default', label: '수룡이', image: suryong, requiredBadges: 0 },
   { id: 'strawberry', label: '딸기 수룡이', image: strawberrySuryong, requiredBadges: 3 },
   { id: 'jacket', label: '과잠 수룡이', image: jacketSuryong, requiredBadges: 6 },
   { id: 'short-sleeve', label: '반소매 수룡이', image: shortSleeveSuryong, requiredBadges: 9 },
+  { id: 'default', label: '수룡이', image: suryong, requiredBadges: 0 },
 ];
 
 export default function PetScreen({ onHome, onOpenProfile }) {
