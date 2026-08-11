@@ -62,10 +62,10 @@ export function getRouteRecommendation({ fromBuildingId, fromFloor, toBuildingId
 // 4. 학번 로그인 ──────────────────────────────────────────
 // body: { student_id } 만 있으면 됨 (이름/비밀번호 없음, 없는 학번이면 자동 생성됨).
 // 응답: { student_id, rewards: {...} }
-export function login(studentId, password) {
+export function login(studentId) {
   return request('/api/users/login', {
     method: 'POST',
-    body: { student_id: studentId, password },
+    body: { student_id: studentId },
   });
 }
 
@@ -74,6 +74,27 @@ export function login(studentId, password) {
 // ⚠️ nickname/department 등은 없음.
 export function getUserProfile(studentId) {
   return request(`/api/users/${encodeURIComponent(studentId)}`);
+}
+
+// 5-1. 기존 비밀번호 확인 ───────────────────────────────────
+// 정민이 auth.py 스펙: POST /api/users/{id}/password/verify
+// 요청: { current_password }
+// 응답: 200 { verified: true, message } / 401 { detail: "기존 비밀번호가 일치하지 않습니다." }
+export function verifyPassword(studentId, currentPassword) {
+  return request(`/api/users/${encodeURIComponent(studentId)}/password/verify`, {
+    method: 'POST',
+    body: { current_password: currentPassword },
+  });
+}
+
+// 5-2. 비밀번호 변경 ────────────────────────────────────────
+// 정민이 auth.py 스펙: PATCH /api/users/{id}/password
+// 요청: { current_password, new_password }
+export function changePassword(studentId, currentPassword, newPassword) {
+  return request(`/api/users/${encodeURIComponent(studentId)}/password`, {
+    method: 'PATCH',
+    body: { current_password: currentPassword, new_password: newPassword },
+  });
 }
 
 // 6. 시간표 등록 ──────────────────────────────────────────
