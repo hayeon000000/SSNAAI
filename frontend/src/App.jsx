@@ -8,11 +8,16 @@ import ProfileScreen from './components/ProfileScreen'
 import PasswordChangeScreen from './components/PasswordChangeScreen'
 import TimetableScreen from './components/TimetableScreen'
 import BuildingFavoritesScreen from './components/BuildingFavoritesScreen'
+import LoginScreen from './components/LoginScreen'
+import { setStudentId, getStudentId } from './lib/apiConfig'
+import { getLocalProfile, setLocalProfile } from './lib/localCache'
 
 function App() {
-  const [screen, setScreen] = useState('home')
+  const [screen, setScreen] = useState(getStudentId() ? 'home' : 'login')
   const [selection, setSelection] = useState({ transport: [], destination: null })
-  const [profile, setProfile] = useState({ nickname: '', department: null, studentYear: null })
+  const [profile, setProfile] = useState(
+    () => getLocalProfile() ?? { nickname: '', department: null, studentYear: null }
+  )
   // 목적지를 방금 선택하고 온 상태인지 추적. 마이페이지 등 다른 화면을 거치면 꺼진다.
   const [justSelected, setJustSelected] = useState(false)
 
@@ -31,6 +36,14 @@ function App() {
   const goToDestination = () => {
     setJustSelected(false)
     setScreen('destination')
+  }
+
+  if (screen === 'login') {
+    return (
+      <LoginScreen
+        onLoginSuccess={() => setScreen(getLocalProfile() ? 'home' : 'profile-edit')}
+      />
+    )
   }
 
   if (screen === 'destination') {
@@ -69,12 +82,15 @@ function App() {
     return (
       <MyPageScreen
         profile={profile}
+        onProfileLoaded={(data) => setProfile((prev) => ({ ...prev, ...data }))}
         onEditProfile={() => setScreen('profile-edit')}
+        onLogin={() => setScreen('login')}
         onManageTimetable={() => setScreen('timetable')}
         onManageFavorites={() => setScreen('favorites')}
         onChangePassword={() => setScreen('password-change')}
         onLogout={() => {
           setProfile({ nickname: '', department: null, studentYear: null })
+          setStudentId(null)
           setScreen('mypage')
         }}
         onOpenPet={goToPet}
@@ -117,14 +133,17 @@ function App() {
   }
 
   if (screen === 'profile-edit') {
+    const isFirstSetup = !getLocalProfile()
     return (
       <ProfileScreen
         profile={profile}
         onSave={(next) => {
-          setProfile(next)
-          setScreen('mypage')
+          const merged = { ...profile, ...next }
+          setProfile(merged)
+          setLocalProfile(merged)
+          setScreen(isFirstSetup ? 'home' : 'mypage')
         }}
-        onBack={() => setScreen('mypage')}
+        onBack={() => setScreen(isFirstSetup ? 'home' : 'mypage')}
         onHome={() => setScreen('home')}
         onOpenPet={goToPet}
       />
@@ -140,6 +159,7 @@ function App() {
       onOpenResult={() => setScreen('result')}
       onOpenProfile={goToMyPage}
       onOpenPet={goToPet}
+      onSyncTimetable={() => setScreen('timetable')}
     />
   )
 }

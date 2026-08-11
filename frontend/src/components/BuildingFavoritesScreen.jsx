@@ -1,6 +1,17 @@
 import { useRef, useState } from 'react';
 import BottomNav from './BottomNav';
 import NotificationBell from './NotificationBell';
+import { addFavorite } from '../lib/api';
+import { getStudentId } from '../lib/apiConfig';
+import { BUILDING_NAME_TO_BACKEND_ID } from '../lib/buildings';
+import { getLocalFavorites, setLocalFavorites } from '../lib/localCache';
+
+// ⚠️ 즐겨찾기 "조회" 엔드포인트가 백엔드에 없어서(등록만 있음), 화면 진입 시
+// 서버에서 못 불러오는 대신 브라우저 로컬 캐시(localCache.js)에서 불러온다.
+// 다른 기기에서 로그인하면 안 보임 — GET 엔드포인트 생기면 서버 조회로 교체.
+//
+// ⚠️ 즐겨찾기 등록은 건물 하나씩만 됨(place_id). 도서관/행정관은 backend에 대응
+// 건물이 없어서 저장 안 됨(로컬 캐시엔 그대로 남아있음, 서버 저장만 스킵).
 
 const ALL_BUILDINGS = [
   '수정관A',
@@ -31,11 +42,12 @@ function reorder(list, dragged, target) {
   return next;
 }
 
-function BuildingPill({ name, favorited, onDragStart, onDragEnd, onDragEnter, onTouchStart, pillRef }) {
+function BuildingPill({ name, favorited, onDragStart, onDragEnd, onDragEnter, onTouchStart, onClick, pillRef }) {
   return (
     <div
       ref={pillRef}
       draggable
+      onClick={() => onClick(name)}
       onDragStart={() => onDragStart(name)}
       onDragEnd={onDragEnd}
       onDragEnter={(e) => {
@@ -44,7 +56,7 @@ function BuildingPill({ name, favorited, onDragStart, onDragEnd, onDragEnter, on
       }}
       onTouchStart={(e) => onTouchStart(name, e)}
       style={{ touchAction: 'none' }}
-      className={`h-[46px] rounded-full text-[15px] font-medium flex items-center justify-center cursor-grab active:cursor-grabbing select-none transition-colors ${
+      className={`h-[46px] rounded-full text-[15px] font-medium flex items-center justify-center cursor-pointer select-none transition-colors ${
         favorited ? 'bg-[#a78bba]/50 text-white' : 'bg-white/50 text-[#a78bba]'
       }`}
     >
@@ -54,12 +66,44 @@ function BuildingPill({ name, favorited, onDragStart, onDragEnd, onDragEnter, on
 }
 
 export default function BuildingFavoritesScreen({ onSave, onBack, onHome, onOpenPet }) {
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavorites] = useState(getLocalFavorites);
   const [dragging, setDragging] = useState(null);
   const [touchPoint, setTouchPoint] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const topZoneRef = useRef(null);
   const bottomZoneRef = useRef(null);
   const pillRefs = useRef({});
+
+  const handleSave = async () => {
+    const studentId = getStudentId();
+    if (!studentId) {
+      setSaveError('로그인 정보가 없어요.');
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+
+    let failCount = 0;
+    for (const name of favorites) {
+      const placeId = BUILDING_NAME_TO_BACKEND_ID[name];
+      if (!placeId) continue; // 도서관/행정관 등 backend에 없는 건물은 서버 저장 스킵
+      try {
+        await addFavorite(studentId, placeId);
+      } catch (err) {
+        console.error('[BuildingFavoritesScreen] 저장 실패:', name, err);
+        failCount += 1;
+      }
+    }
+
+    setSaving(false);
+    if (failCount > 0) {
+      setSaveError(`${failCount}개 저장에 실패했어요. 다시 시도해줘.`);
+    } else {
+      setLocalFavorites(favorites);
+      onSave?.(favorites);
+    }
+  };
 
   const remaining = ALL_BUILDINGS.filter((name) => !favorites.includes(name));
 
@@ -127,6 +171,11 @@ export default function BuildingFavoritesScreen({ onSave, onBack, onHome, onOpen
     setTouchPoint(null);
   };
 
+  // 클릭 한 번으로 즐겨찾기 목록에 넣고 빼기 (드래그가 안 되는 환경 대비)
+  const handleTogglePill = (name) => {
+    setFavorites((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
+  };
+
   return (
     <div
       className="max-w-sm mx-auto min-h-screen flex flex-col justify-between px-7 py-8 text-white"
@@ -164,6 +213,7 @@ export default function BuildingFavoritesScreen({ onSave, onBack, onHome, onOpen
                 onDragEnd={handleDragEnd}
                 onDragEnter={handlePillEnter}
                 onTouchStart={handleTouchStart}
+                onClick={handleTogglePill}
                 pillRef={(el) => {
                   pillRefs.current[name] = el;
                 }}
@@ -188,6 +238,7 @@ export default function BuildingFavoritesScreen({ onSave, onBack, onHome, onOpen
                 onDragEnd={handleDragEnd}
                 onDragEnter={() => {}}
                 onTouchStart={handleTouchStart}
+                onClick={handleTogglePill}
                 pillRef={(el) => {
                   pillRefs.current[name] = el;
                 }}
@@ -206,12 +257,15 @@ export default function BuildingFavoritesScreen({ onSave, onBack, onHome, onOpen
           </button>
           <button
             type="button"
-            onClick={() => onSave?.(favorites)}
-            className="w-[162px] py-3 rounded-[37px] bg-[#a78bba]/50 text-white text-[15px] font-medium shadow-[0px_4px_20.8px_-10px_rgba(167,139,186,0.5)] transition-colors hover:bg-[#a78bba]/70"
+            onClick={handleSave}
+            disabled={saving}
+            className="w-[162px] py-3 rounded-[37px] bg-[#a78bba]/50 text-white text-[15px] font-medium shadow-[0px_4px_20.8px_-10px_rgba(167,139,186,0.5)] transition-colors hover:bg-[#a78bba]/70 disabled:opacity-50"
           >
-            저장
+            {saving ? '저장 중...' : '저장'}
           </button>
         </div>
+
+        {saveError && <p className="text-center text-sm text-white mt-3">{saveError}</p>}
       </div>
 
       <BottomNav onPet={onOpenPet} onHome={onHome} profileActive />

@@ -1,7 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { User, Plus } from 'lucide-react';
 import BottomNav from './BottomNav';
 import NotificationBell from './NotificationBell';
+
+// ⚠️ 실제 백엔드(main 브랜치) 확인 결과: UserProfileResponse엔 student_id/timetable/
+// favorite_places/rewards만 있고 nickname·department·studentYear·password 개념이 아예 없음.
+// 즉 이 화면(닉네임/학과/비밀번호 입력)은 서버에 저장할 방법이 없어서 지금은 로컬(React
+// state)에만 남고, App.jsx의 profile 상태가 새로고침하면 날아감. 서버에 저장하려면
+// 정민이한테 프로필 확장 API를 새로 만들어달라고 해야 함.
 
 const DEPARTMENTS = [
   '국어국문학과',
@@ -59,6 +65,24 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome, onOpenP
   const [studentYear, setStudentYear] = useState(profile?.studentYear ?? null);
   const [departmentOpen, setDepartmentOpen] = useState(false);
   const [studentYearOpen, setStudentYearOpen] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState(profile?.photoUrl ?? null);
+  const photoInputRef = useRef(null);
+
+  // ⚠️ 사진도 저장할 백엔드가 없어서 로컬 미리보기(base64)로만 처리됨 —
+  // 새로고침하면 날아감. 서버에 실제로 남기려면 정민이한테 업로드 API 요청 필요.
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPhotoUrl(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = () => {
+    // 백엔드에 저장할 방법이 없어서(위 주석 참고) 로컬 state만 갱신함.
+    const profileData = { nickname, department, studentYear, password, photoUrl };
+    onSave?.(profileData);
+  };
 
   return (
     <div
@@ -76,10 +100,22 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome, onOpenP
 
           <div className="relative w-[103px] h-[103px] mx-auto mt-6 mb-6">
             <div className="w-full h-full rounded-full bg-[#f4ebf7] flex items-center justify-center overflow-hidden">
-              <User className="w-14 h-14 text-[#a78bba]" strokeWidth={1.5} />
+              {photoUrl ? (
+                <img src={photoUrl} alt="프로필 사진" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-14 h-14 text-[#a78bba]" strokeWidth={1.5} />
+              )}
             </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
             <button
               type="button"
+              onClick={() => photoInputRef.current?.click()}
               aria-label="프로필 사진 변경"
               className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-[#a78bba] flex items-center justify-center"
             >
@@ -167,7 +203,7 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome, onOpenP
         <div className="flex items-center justify-center gap-4 mt-6">
           <button
             type="button"
-            onClick={() => onSave?.({ nickname, department, studentYear, password })}
+            onClick={handleSave}
             className="w-[162px] py-3 rounded-[37px] bg-white/50 text-[#a775ca] text-[15px] font-medium shadow-[0px_4px_20.8px_-10px_rgba(167,139,186,0.5)] transition-colors hover:bg-white/70"
           >
             저장

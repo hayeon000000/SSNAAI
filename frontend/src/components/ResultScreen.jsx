@@ -4,7 +4,7 @@ import CampusMap from './CampusMap';
 import BottomNav from './BottomNav';
 import NotificationBell from './NotificationBell';
 import WarningModal from './WarningModal';
-import { getNow } from '../lib/getNow';
+import { useNow } from '../lib/useNow';
 import { useEta } from '../lib/useEta';
 import { useCongestion } from '../lib/useCongestion';
 
@@ -31,7 +31,7 @@ export default function ResultScreen({
   onOpenProfile,
   onOpenPet,
 }) {
-  const { date, time } = getNow();
+  const { date, time } = useNow();
   const [showWarning, setShowWarning] = useState(false);
   const selectedTransport = transport ?? [];
   const transportLabel =
@@ -42,10 +42,10 @@ export default function ResultScreen({
   const showAlternative = selectedTransport.length === 1;
   const altTransportShort = TRANSPORT_SHORT_LABELS[ALT_TRANSPORT[selectedTransport[0]]] ?? '다른 수단';
 
-  const { data: eta } = useEta(destination, selectedTransport);
+  const { data: eta, loading } = useEta(destination, selectedTransport);
   const { data: congestion } = useCongestion();
-  const etaLabel = eta?.etaMinutes != null ? `${eta.etaMinutes}분` : '00분';
-  const altEtaLabel = eta?.alternative?.etaMinutes != null ? `${eta.alternative.etaMinutes}분` : '00분';
+  const etaLabel = loading ? '계산 중' : eta?.etaMinutes != null ? `${eta.etaMinutes}분` : '00분';
+  const altEtaLabel = loading ? '계산 중' : eta?.alternative?.etaMinutes != null ? `${eta.alternative.etaMinutes}분` : '00분';
   const altSteps = eta?.alternative?.steps ?? [];
 
   return (
@@ -94,15 +94,14 @@ export default function ResultScreen({
             <p className="text-[#d480bc] text-2xl font-semibold text-center mt-1">{altEtaLabel}</p>
 
             <div className="flex flex-col gap-1.5 mt-3">
-              {(altSteps.length > 0 ? altSteps : [{ from: '000', to: 'ㅁㅁㅁ', minutes: null }, { from: '000', to: 'ㅁㅁㅁ', minutes: null }]).map(
-                (step, index) => (
-                  <div key={index} className="flex items-center justify-between text-black text-sm">
-                    <span>{step.from} → {step.to}</span>
-                    <span className="text-[#d480bc] font-semibold">
-                      {step.minutes != null ? `${step.minutes}분` : '00분'}
-                    </span>
-                  </div>
-                )
+              {altSteps.length > 0 ? (
+                altSteps.map((step, index) => (
+                  <p key={index} className="text-black text-sm text-center">
+                    {step}
+                  </p>
+                ))
+              ) : (
+                <p className="text-black text-sm text-center opacity-50">경로 정보 없음</p>
               )}
             </div>
           </>

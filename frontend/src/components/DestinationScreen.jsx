@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import BottomNav from './BottomNav';
 import NotificationBell from './NotificationBell';
-import { getNow } from '../lib/getNow';
+import { useNow } from '../lib/useNow';
+import { getLocalFavorites } from '../lib/localCache';
 
 function ElevatorIcon({ className, selected }) {
   const fill = selected ? 'rgba(167,139,186,0.5)' : 'rgba(255,255,255,0.5)';
@@ -27,8 +28,7 @@ const TRANSPORT_OPTIONS = [
   { id: '계단만', label: '계단', Icon: StairsIcon },
 ];
 
-const PRIMARY_DESTINATIONS = ['수정관A', '성신관', '난향관'];
-const OTHER_DESTINATIONS = ['도서관', '수정관B', '수정관C', '음악관', '조형1관', '조형2관', '체육관', '학생회관', '행정관'];
+const ALL_DESTINATIONS = ['수정관A', '성신관', '난향관', '도서관', '수정관B', '수정관C', '음악관', '조형1관', '조형2관', '체육관', '학생회관', '행정관'];
 
 const CARD_CLASS = 'bg-white/50 rounded-2xl shadow-[0px_4px_17.9px_-6px_rgba(167,139,186,0.5)] p-5';
 
@@ -47,9 +47,15 @@ function DestinationPill({ name, selected, onClick }) {
 }
 
 export default function DestinationScreen({ onComplete, onBack, onOpenProfile, onOpenPet }) {
-  const { date, time } = getNow();
+  const { date, time } = useNow();
   const [transport, setTransport] = useState([]);
   const [destination, setDestination] = useState(null);
+
+  // 즐겨찾기한 건물(저장 순서대로)을 상단에, 나머지는 하단에 배치.
+  // 즐겨찾기가 없으면 기존처럼 3개만 기본으로 상단에 보여준다.
+  const favorites = getLocalFavorites().filter((name) => ALL_DESTINATIONS.includes(name));
+  const primaryDestinations = favorites.length > 0 ? favorites : ['수정관A', '성신관', '난향관'];
+  const otherDestinations = ALL_DESTINATIONS.filter((name) => !primaryDestinations.includes(name));
 
   const toggleTransport = (id) => {
     setTransport((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
@@ -98,7 +104,7 @@ export default function DestinationScreen({ onComplete, onBack, onOpenProfile, o
         <div className={CARD_CLASS}>
           <h2 className="text-xl font-bold text-center mb-5">목적지</h2>
           <div className="grid grid-cols-3 gap-3">
-            {PRIMARY_DESTINATIONS.map((name) => (
+            {primaryDestinations.map((name) => (
               <DestinationPill
                 key={name}
                 name={name}
@@ -109,7 +115,7 @@ export default function DestinationScreen({ onComplete, onBack, onOpenProfile, o
           </div>
           <hr className="border-white/60 my-4" />
           <div className="grid grid-cols-3 gap-3">
-            {OTHER_DESTINATIONS.map((name) => (
+            {otherDestinations.map((name) => (
               <DestinationPill
                 key={name}
                 name={name}

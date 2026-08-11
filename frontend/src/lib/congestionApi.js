@@ -1,24 +1,51 @@
 // 건물별 혼잡도 데이터를 가져오는 API 래퍼.
-// 백엔드가 준비되면 아래 fetchCongestion 함수 내부만 실제 요청으로 교체하면 된다.
-//
-// 기대하는 응답 형태:
-// {
-//   [buildingId: string]: 'congested' | 'normal' | 'relaxed'
-// }
-// buildingId는 CampusMap.jsx의 CONGESTION_ENABLED_IDS(학생회관/난향관/성신관/수정관A·B·C)
-// 중 하나여야 한다. 그 외 건물은 데이터가 와도 무시된다.
+// GET /api/home/map (main 브랜치 app/routers/home.py 확인) 사용.
+// 응답: { base_time, buildings: [{ building_id, current_level: 'LOW'|'MODERATE'|'HIGH', ... }] }
+
+import { API_BASE_URL } from './apiConfig';
+import { MAP_ID_TO_BACKEND_ID } from './buildings';
+
+// 기대하는 최종 반환 형태: { [mapId: string]: 'congested' | 'normal' | 'relaxed' }
+// 색상은 CampusMap.jsx의 congestion.js 톤다운 팔레트를 그대로 씀
+// (백엔드가 주는 color 필드는 원색이라 보라 테마랑 안 어울려서 안 씀).
+
+// backend building_id → 프론트 지도 id (buildings.js MAP_ID_TO_BACKEND_ID의 역방향)
+const BACKEND_ID_TO_MAP_IDS = Object.entries(MAP_ID_TO_BACKEND_ID).reduce((acc, [mapId, backendId]) => {
+  (acc[backendId] ??= []).push(mapId);
+  return acc;
+}, {});
+
+const LEVEL_TO_CONGESTION = {
+  HIGH: 'congested',
+  MODERATE: 'normal',
+  LOW: 'relaxed',
+};
 
 export async function fetchCongestion() {
-  // TODO(backend): 아래 mock을 실제 API 호출로 교체
-  // const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
-  // const res = await fetch(`${API_BASE_URL}/api/congestion`);
-  // if (!res.ok) throw new Error('Failed to fetch congestion');
-  // return res.json();
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/home/map`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' },
+    });
+    if (!res.ok) throw new Error('Failed to fetch congestion');
+    const payload = await res.json();
+    const buildings = payload.buildings ?? [];
 
-  // 백엔드 연동 전까지는 개발 중 화면 확인용 mock 데이터를 보여준다.
-  // 위 fetch로 교체하면 이 블록은 더 이상 쓰이지 않는다.
-  if (import.meta.env.DEV) return MOCK_CONGESTION;
-  return null;
+    const result = {};
+    for (const b of buildings) {
+      const mapIds = BACKEND_ID_TO_MAP_IDS[b.building_id];
+      if (!mapIds) continue; // UNJEONG, GLOBAL, MEDIA, PRIME 등 지도에 없는 건물은 무시
+
+      const level = LEVEL_TO_CONGESTION[b.current_level] ?? 'relaxed';
+      for (const mapId of mapIds) {
+        result[mapId] = level; // 수정관 A/B/C, 조형1/2관처럼 여러 지도 id가 같은 backend 건물을 공유
+      }
+    }
+    return result;
+  } catch (err) {
+    console.error('[congestionApi] /api/home/map 연동 실패:', err);
+    if (import.meta.env.DEV) return MOCK_CONGESTION;
+    return null;
+  }
 }
 
 const MOCK_CONGESTION = {
@@ -26,6 +53,6 @@ const MOCK_CONGESTION = {
   nanhyang: 'normal',
   seongshinHall: 'congested',
   sujeongA: 'normal',
-  sujeongB: 'relaxed',
-  sujeongC: 'relaxed',
+  sujeongB: 'normal',
+  sujeongC: 'normal',
 };
