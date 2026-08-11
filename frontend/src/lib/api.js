@@ -62,10 +62,10 @@ export function getRouteRecommendation({ fromBuildingId, fromFloor, toBuildingId
 // 4. 학번 로그인 ──────────────────────────────────────────
 // body: { student_id } 만 있으면 됨 (이름/비밀번호 없음, 없는 학번이면 자동 생성됨).
 // 응답: { student_id, rewards: {...} }
-export function login(studentId) {
+export function login(studentId, password) {
   return request('/api/users/login', {
     method: 'POST',
-    body: { student_id: studentId },
+    body: { student_id: studentId, password },
   });
 }
 
