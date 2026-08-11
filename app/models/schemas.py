@@ -49,33 +49,25 @@ class BuildingDetailResponse(BaseModel):
     recommendation_message: str
 
 
-class FloorStatusResponse(BaseModel):
-    floor: int
-    waiting_count: int
+class RouteBuildingCongestionResponse(BaseModel):
+    building_id: str
+    building_name: str
     current_label: str
     current_score: float
     predicted_score_after_10_min: float
     expected_wait_seconds: int
-    schedule_pressure: int
-    data_imputed: bool
     recommend_stairs: bool
 
 
-class ElevatorResponse(BaseModel):
-    elevator_id: str
-    elevator_name: str
-    current_label: str
-    current_score: float
-    predicted_score_after_10_min: float
+class RouteOptionResponse(BaseModel):
+    building_ids: list[str]
+    building_names: list[str]
+    walk_minutes: int
     expected_wait_seconds: int
-    floors: list[FloorStatusResponse]
-
-
-class ElevatorMenuResponse(BaseModel):
-    building_id: str
-    building_name: str
-    base_time: datetime
-    elevators: list[ElevatorResponse]
+    congestion_score: float
+    recommended: bool
+    steps: list[str]
+    congestions: list[RouteBuildingCongestionResponse]
 
 
 class RouteRecommendationResponse(BaseModel):
@@ -87,6 +79,9 @@ class RouteRecommendationResponse(BaseModel):
     stairs_recommended: bool
     message: str
     steps: list[str]
+    route_buildings: list[str] = Field(default_factory=list)
+    route_building_names: list[str] = Field(default_factory=list)
+    route_options: list[RouteOptionResponse] = Field(default_factory=list)
 
 
 class LoginRequest(BaseModel):

@@ -53,10 +53,67 @@ class DataStore:
         return self._schedules
 
     def get_building(self, building_id: str) -> BuildingInfo:
-        building = self.buildings.get(building_id)
+        normalized_id = self.normalize_building_id(building_id)
+        building = self.buildings.get(normalized_id)
         if not building:
             raise ValueError(f"Unknown building_id: {building_id}")
         return building
+
+    def normalize_building_id(self, building_id: str | None) -> str:
+        if not building_id:
+            return "UNKNOWN"
+        raw = building_id.strip()
+        if raw in self._buildings:
+            return raw
+        compact = re.sub(r"[\s_-]+", "", raw).upper()
+        aliases = {
+            "SOOJUNG": "SOOJUNG",
+            "SUJEONG": "SOOJUNG",
+            "SUJUNG": "SOOJUNG",
+            "수정": "SOOJUNG",
+            "수정관": "SOOJUNG",
+            "SUNGSHIN": "SUNGSHIN",
+            "성신": "SUNGSHIN",
+            "성신관": "SUNGSHIN",
+            "NANHYANG": "NANHYANG",
+            "NANHYANGHALL": "NANHYANG",
+            "NANHYANGGWAN": "NANHYANG",
+            "난향": "NANHYANG",
+            "난향관": "NANHYANG",
+            "UNJEONG": "UNJEONG",
+            "운정": "UNJEONG",
+            "운정그린캠퍼스": "UNJEONG",
+            "PRIME": "PRIME",
+            "프라임": "PRIME",
+            "프라임관": "PRIME",
+            "JOHYUNG": "JOHYUNG",
+            "조형": "JOHYUNG",
+            "조형관": "JOHYUNG",
+            "MUSIC": "MUSIC",
+            "음악": "MUSIC",
+            "음악관": "MUSIC",
+            "MEDIA": "MEDIA",
+            "미디어": "MEDIA",
+            "미디어정보관": "MEDIA",
+            "GLOBAL": "GLOBAL",
+            "국제": "GLOBAL",
+            "국제교육관": "GLOBAL",
+            "GYM": "GYM",
+            "체육": "GYM",
+            "체육관": "GYM",
+            "STUDENT": "STUDENT_HALL",
+            "STUDENTHALL": "STUDENT_HALL",
+            "STUDENTUNION": "STUDENT_HALL",
+            "STUDENTCENTER": "STUDENT_HALL",
+            "HAKSAENG": "STUDENT_HALL",
+            "HAKSENG": "STUDENT_HALL",
+            "HAKSAENGHALL": "STUDENT_HALL",
+            "HAKSENGHALL": "STUDENT_HALL",
+            "학생": "STUDENT_HALL",
+            "학생관": "STUDENT_HALL",
+            "학생회관": "STUDENT_HALL",
+        }
+        return aliases.get(compact, raw)
 
     def latest_sensor_time(self) -> datetime | None:
         return self.sensors[-1].timestamp if self.sensors else None
@@ -82,10 +139,11 @@ class DataStore:
         ]
 
     def schedule_pressure(self, building_id: str, base_time: datetime, window_minutes: int = 10, floor: int | None = None) -> int:
+        normalized_id = self.normalize_building_id(building_id)
         current_minutes = base_time.hour * 60 + base_time.minute
         count = 0
         for entry in self.schedules:
-            if entry.building_id != building_id:
+            if entry.building_id != normalized_id:
                 continue
             if floor is not None and entry.floor != floor:
                 continue
@@ -98,10 +156,11 @@ class DataStore:
         return count
 
     def nearby_classes(self, building_id: str, base_time: datetime, window_minutes: int = 15) -> list[ScheduleEntry]:
+        normalized_id = self.normalize_building_id(building_id)
         current_minutes = base_time.hour * 60 + base_time.minute
         result: list[ScheduleEntry] = []
         for entry in self.schedules:
-            if entry.building_id != building_id or entry.day_of_week != base_time.weekday():
+            if entry.building_id != normalized_id or entry.day_of_week != base_time.weekday():
                 continue
             start_minutes = entry.start_time.hour * 60 + entry.start_time.minute
             end_minutes = entry.end_time.hour * 60 + entry.end_time.minute
@@ -111,7 +170,7 @@ class DataStore:
 
     def search_schedules(self, keyword: str | None, building_id: str | None, limit: int) -> list[ScheduleEntry]:
         safe_keyword = (keyword or "").strip()
-        safe_building_id = (building_id or "").strip()
+        safe_building_id = self.normalize_building_id(building_id) if building_id else ""
         result: list[ScheduleEntry] = []
         for entry in self.schedules:
             if safe_keyword and safe_keyword not in entry.subject and safe_keyword not in entry.room:
@@ -140,6 +199,8 @@ class DataStore:
             return "UNJEONG"
         if stripped.startswith("프"):
             return "PRIME"
+        if stripped.startswith("학") or "학생회관" in stripped:
+            return "STUDENT_HALL"
         if stripped.startswith("조"):
             return "JOHYUNG"
         if stripped.startswith("음"):
@@ -240,6 +301,7 @@ class DataStore:
             BuildingInfo("NANHYANG", "난향관", 37.59091, 127.02121, 1, 7),
             BuildingInfo("UNJEONG", "운정그린캠퍼스", 37.60353, 127.04262, 1, 12),
             BuildingInfo("PRIME", "프라임관", 37.59107, 127.02282, 1, 8),
+            BuildingInfo("STUDENT_HALL", "학생회관", 37.58930, 127.01650, 1, 5),
             BuildingInfo("JOHYUNG", "조형관", 37.59066, 127.02194, 1, 8),
             BuildingInfo("MUSIC", "음악관", 37.59196, 127.02244, 1, 6),
             BuildingInfo("MEDIA", "미디어정보관", 37.59216, 127.02181, 1, 6),

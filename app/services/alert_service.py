@@ -12,12 +12,12 @@ from app.services.user_service import user_service
 class AlertService:
     def create(self, request: AlertCreateRequest) -> AlertResponse:
         user_service.require_user(request.student_id)
-        data_store.get_building(request.building_id)
+        building = data_store.get_building(request.building_id)
 
         alert = AlertPreference(
             id=f"ALERT-{uuid4().hex[:8].upper()}",
             student_id=request.student_id.strip(),
-            building_id=request.building_id,
+            building_id=building.id,
             floor=request.floor,
             starts_at=request.starts_at,
             ends_at=request.ends_at,

@@ -44,7 +44,8 @@ class UserService:
 
     def add_timetable(self, student_id: str, request: TimetableRequest) -> UserProfileResponse:
         user = self.require_user(student_id)
-        building_id = request.building_id or data_store.building_from_room(request.room).id
+        building = data_store.get_building(request.building_id) if request.building_id else data_store.building_from_room(request.room)
+        building_id = building.id
         floor = request.floor if request.floor is not None else data_store.floor_from_room(request.room)
 
         with database.connect() as connection:
