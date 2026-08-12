@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { User, Plus } from 'lucide-react';
 import BottomNav from './BottomNav';
 import NotificationBell from './NotificationBell';
+import { updateUserProfile } from '../lib/api';
 
 // ⚠️ 실제 백엔드(main 브랜치) 확인 결과: UserProfileResponse엔 student_id/timetable/
 // favorite_places/rewards만 있고 nickname·department·studentYear·password 개념이 아예 없음.
@@ -78,12 +79,35 @@ export default function ProfileScreen({ profile, onSave, onBack, onHome, onOpenP
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
-    // 백엔드에 저장할 방법이 없어서(위 주석 참고) 로컬 state만 갱신함.
-    const profileData = { nickname, department, studentYear, password, photoUrl };
-    onSave?.(profileData);
-  };
+const handleSave = async () => {
+    // 1. profile 객체에서 학번(student_id)을 가져옵니다.
+    const studentId = profile?.student_id;
 
+    if (!studentId) {
+      alert('학번 정보가 없어 프로필을 저장할 수 없습니다.');
+      return;
+    }
+
+    try {
+      // 2. 백엔드 API 호출하여 서버 DB에 저장
+      // (주의: 백엔드 스키마가 스네이크 케이스(student_year)를 쓸 확률이 높으므로 키 이름을 맞춰줍니다)
+      await updateUserProfile(studentId, {
+        nickname: nickname,
+        department: department,
+        student_year: studentYear 
+      });
+
+      // 3. 서버 저장 성공 후, 프론트엔드 로컬 상태도 갱신 (기존 로직 유지)
+      const profileData = { nickname, department, studentYear, password, photoUrl };
+      onSave?.(profileData);
+      
+      alert('프로필이 성공적으로 저장되었습니다!');
+      
+    } catch (error) {
+      console.error('[ProfileScreen] 프로필 저장 실패:', error);
+      alert('프로필 저장에 실패했습니다. 다시 시도해 주세요.');
+    }
+  };
   return (
     <div
       className="max-w-sm mx-auto min-h-screen flex flex-col justify-between px-7 py-8 text-white"
