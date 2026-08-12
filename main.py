@@ -2,8 +2,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routers import alerts, auth, buildings, data, home, routes, users
+from app.routers import alerts, auth, buildings, data, home, routes, timetable, users
 from app.services.auth_service import init_auth_db
+
 
 app = FastAPI(title="Elevator Congestion Backend", version="1.2.0")
 
@@ -23,6 +24,7 @@ app.include_router(routes.router)
 app.include_router(users.router)
 app.include_router(alerts.router)
 app.include_router(data.router)
+app.include_router(timetable.router)
 
 
 @app.on_event("startup")
