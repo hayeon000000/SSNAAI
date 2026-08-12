@@ -62,10 +62,10 @@ export function getRouteRecommendation({ fromBuildingId, fromFloor, toBuildingId
 // 4. 학번 로그인 ──────────────────────────────────────────
 // body: { student_id } 만 있으면 됨 (이름/비밀번호 없음, 없는 학번이면 자동 생성됨).
 // 응답: { student_id, rewards: {...} }
-export function login(studentId) {
+export function login(studentId, password) {
   return request('/api/users/login', {
     method: 'POST',
-    body: { student_id: studentId },
+    body: { student_id: studentId, password: password },
   });
 }
 
@@ -83,7 +83,7 @@ export function getUserProfile(studentId) {
 export function verifyPassword(studentId, currentPassword) {
   return request(`/api/users/${encodeURIComponent(studentId)}/password/verify`, {
     method: 'POST',
-    body: { current_password: currentPassword },
+    body: { currentPassword: currentPassword },
   });
 }
 
@@ -93,7 +93,15 @@ export function verifyPassword(studentId, currentPassword) {
 export function changePassword(studentId, currentPassword, newPassword) {
   return request(`/api/users/${encodeURIComponent(studentId)}/password`, {
     method: 'PATCH',
-    body: { current_password: currentPassword, new_password: newPassword },
+    body: { currentPassword: currentPassword, newPassword: newPassword },
+  });
+}
+
+// 5-3. 사용자 프로필 수정 (닉네임, 학과 등)
+export function updateUserProfile(studentId, profileData) {
+  return request(`/api/users/${encodeURIComponent(studentId)}/profile`, {
+    method: 'PATCH',
+    body: profileData, // 예: { nickname: "하연", department: "AI융합학부 지능형IoT전공" }
   });
 }
 
